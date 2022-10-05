@@ -5,6 +5,30 @@ import (
 	"testing"
 )
 
+func TestFromChan(t *testing.T) {
+	c := make(chan int)
+	go func() {
+		defer close(c)
+		c <- 1
+		c <- 2
+		c <- 3
+		c <- 4
+	}()
+	it := FromChan(c)
+	s := it.Collect()
+	expected := []int{1, 2, 3, 4}
+	if len(s) != len(expected) {
+		t.Error("FromChan did not work for ints")
+		return
+	}
+	for k := 0; k < len(s); k++ {
+		if s[k] != expected[k] {
+			t.Error("FromChan did not work for ints")
+			return
+		}
+	}
+}
+
 func TestFromSlice(t *testing.T) {
 	str := []string{"this", "is", "a", "test"}
 	strIter := FromSlice(str)

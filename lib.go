@@ -2,6 +2,10 @@ package iter
 
 type Iterator[T any] chan T
 
+func FromChan[T any](c chan T) Iterator[T] {
+	return c
+}
+
 func FromSlice[T any](slice []T) Iterator[T] {
 	iter := make(chan T)
 	go func() {
