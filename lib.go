@@ -45,6 +45,17 @@ func (it Iterator[T]) Map(f func(T) T) Iterator[T] {
 	return newIter
 }
 
+func MapInto[T, K any](it Iterator[T], f func(T) K) Iterator[K] {
+	newIter := make(chan K)
+	go func() {
+		defer close(newIter)
+		for v := range it {
+			newIter <- f(v)
+		}
+	}()
+	return newIter
+}
+
 func (it Iterator[T]) Skip(n uint) Iterator[T] {
 	for i := uint(0); i < n; i++ {
 		<-it

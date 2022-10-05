@@ -1,6 +1,7 @@
 package iter
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -8,18 +9,28 @@ func TestFromSlice(t *testing.T) {
 	str := []string{"this", "is", "a", "test"}
 	strIter := FromSlice(str)
 	strSlice := strIter.Collect()
+	if len(str) != len(strSlice) {
+		t.Error("FromSlice did not work for strings")
+		return
+	}
 	for i := 0; i < len(str); i++ {
 		if strSlice[i] != str[i] {
 			t.Error("FromSlice did not work for strings")
+			return
 		}
 	}
 
 	i := []int{1, 2, 3, 4, 5}
 	iIter := FromSlice(i)
 	iSlice := iIter.Collect()
+	if len(i) != len(iSlice) {
+		t.Error("FromSlice did not work for strings")
+		return
+	}
 	for k := 0; k < len(i); k++ {
 		if iSlice[k] != i[k] {
 			t.Error("FromSlice did not work for ints")
+			return
 		}
 	}
 }
@@ -49,6 +60,20 @@ func TestIterator_Map(t *testing.T) {
 	}
 	for i := 0; i < len(expected); i++ {
 		if iSlice[i] != expected[i] {
+			t.Error("Map did not work for ints")
+		}
+	}
+}
+
+func TestIterator_MapOtherType(t *testing.T) {
+	it := FromSlice([]int{1, 2, 3, 4, 5, 6})
+	expected := []string{"1", "2", "3", "4", "5", "6"}
+	mappedIter := MapInto(it, func(i int) string { return fmt.Sprintf("%d", i) }).Collect()
+	if len(expected) != len(mappedIter) {
+		t.Error("Map did not work for ints")
+	}
+	for i := 0; i < len(expected); i++ {
+		if mappedIter[i] != expected[i] {
 			t.Error("Map did not work for ints")
 		}
 	}
