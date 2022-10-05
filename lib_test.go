@@ -48,12 +48,64 @@ func TestFromSlice(t *testing.T) {
 	iIter := FromSlice(i)
 	iSlice := iIter.Collect()
 	if len(i) != len(iSlice) {
-		t.Error("FromSlice did not work for strings")
+		t.Error("FromSlice did not work for ints")
 		return
 	}
 	for k := 0; k < len(i); k++ {
 		if iSlice[k] != i[k] {
 			t.Error("FromSlice did not work for ints")
+			return
+		}
+	}
+}
+
+func TestFromMap(t *testing.T) {
+	m := map[int]string{1: "1", 2: "2", 3: "3"}
+	it := FromMap(m)
+	if !it.All(func(pair Pair[int, string]) bool { return fmt.Sprintf("%d", pair.x) == pair.y }) {
+		t.Error("FromMap did not work")
+	}
+}
+
+func TestFromMapKeys(t *testing.T) {
+	m := map[int]string{1: "1", 2: "2", 3: "3"}
+	it := FromMapKeys(m).Collect()
+	expected := []int{1, 2, 3}
+	if len(it) != len(expected) {
+		t.Error("FromMapKeys did not work")
+		return
+	}
+	for k := 0; k < len(it); k++ {
+		found := false
+		for _, v := range expected {
+			if it[k] == v {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("FromMapKeys did not work")
+			return
+		}
+	}
+}
+
+func TestFromMapValues(t *testing.T) {
+	m := map[int]string{1: "1", 2: "2", 3: "3"}
+	it := FromMapValues(m).Collect()
+	expected := []string{"1", "2", "3"}
+	if len(it) != len(expected) {
+		t.Error("FromMapValues did not work")
+		return
+	}
+	for k := 0; k < len(it); k++ {
+		found := false
+		for _, v := range expected {
+			if it[k] == v {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("FromMapValues did not work")
 			return
 		}
 	}
@@ -452,5 +504,14 @@ func TestIterator_Position(t *testing.T) {
 	if p != nil {
 		t.Error("Position did not work for ints")
 		return
+	}
+}
+
+func TestZip(t *testing.T) {
+	it1 := FromSlice([]int{1, 2, 3})
+	it2 := FromSlice([]int{4, 5, 6})
+	it3 := Zip(it1, it2)
+	if !it3.All(func(pair Pair[int, int]) bool { return pair.x+3 == pair.y }) {
+		t.Error("Zip did not work for ints")
 	}
 }

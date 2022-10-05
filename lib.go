@@ -2,6 +2,11 @@ package iter
 
 type Iterator[T any] chan T
 
+type Pair[T, K any] struct {
+	x T
+	y K
+}
+
 func FromChan[T any](c chan T) Iterator[T] {
 	return c
 }
@@ -11,6 +16,39 @@ func FromSlice[T any](slice []T) Iterator[T] {
 	go func() {
 		defer close(iter)
 		for _, v := range slice {
+			iter <- v
+		}
+	}()
+	return iter
+}
+
+func FromMap[T comparable, K any](m map[T]K) Iterator[Pair[T, K]] {
+	iter := make(chan Pair[T, K])
+	go func() {
+		defer close(iter)
+		for key, v := range m {
+			iter <- Pair[T, K]{x: key, y: v}
+		}
+	}()
+	return iter
+}
+
+func FromMapKeys[T comparable, K any](m map[T]K) Iterator[T] {
+	iter := make(chan T)
+	go func() {
+		defer close(iter)
+		for key := range m {
+			iter <- key
+		}
+	}()
+	return iter
+}
+
+func FromMapValues[K comparable, T any](m map[K]T) Iterator[T] {
+	iter := make(chan T)
+	go func() {
+		defer close(iter)
+		for _, v := range m {
 			iter <- v
 		}
 	}()
@@ -179,6 +217,25 @@ func (it Iterator[T]) ForEach(f func(T)) {
 	for v := range it {
 		f(v)
 	}
+}
+
+func Zip[T, K any](it Iterator[T], other Iterator[K]) Iterator[Pair[T, K]] {
+	newIter := make(chan Pair[T, K])
+	go func() {
+		defer close(newIter)
+		for {
+			v1, ok1 := <-it
+			if !ok1 {
+				return
+			}
+			v2, ok2 := <-other
+			if !ok2 {
+				return
+			}
+			newIter <- Pair[T, K]{x: v1, y: v2}
+		}
+	}()
+	return newIter
 }
 
 func (it Iterator[T]) SkipWhile(f func(T) bool) Iterator[T] {
