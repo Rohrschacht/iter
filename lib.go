@@ -12,47 +12,47 @@ func FromChan[T any](c chan T) Iterator[T] {
 }
 
 func FromSlice[T any](slice []T) Iterator[T] {
-	iter := make(chan T)
+	it := make(chan T)
 	go func() {
-		defer close(iter)
+		defer close(it)
 		for _, v := range slice {
-			iter <- v
+			it <- v
 		}
 	}()
-	return iter
+	return it
 }
 
 func FromMap[T comparable, K any](m map[T]K) Iterator[Pair[T, K]] {
-	iter := make(chan Pair[T, K])
+	it := make(chan Pair[T, K])
 	go func() {
-		defer close(iter)
+		defer close(it)
 		for key, v := range m {
-			iter <- Pair[T, K]{x: key, y: v}
+			it <- Pair[T, K]{x: key, y: v}
 		}
 	}()
-	return iter
+	return it
 }
 
 func FromMapKeys[T comparable, K any](m map[T]K) Iterator[T] {
-	iter := make(chan T)
+	it := make(chan T)
 	go func() {
-		defer close(iter)
+		defer close(it)
 		for key := range m {
-			iter <- key
+			it <- key
 		}
 	}()
-	return iter
+	return it
 }
 
 func FromMapValues[K comparable, T any](m map[K]T) Iterator[T] {
-	iter := make(chan T)
+	it := make(chan T)
 	go func() {
-		defer close(iter)
+		defer close(it)
 		for _, v := range m {
-			iter <- v
+			it <- v
 		}
 	}()
-	return iter
+	return it
 }
 
 func (it Iterator[T]) Collect() []T {
