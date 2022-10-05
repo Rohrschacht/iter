@@ -1,16 +1,20 @@
 package iter
 
+// Iterator can be used to process data in a pipeline pattern.
 type Iterator[T any] chan T
 
+// Pair is used as a helper when an Iterator has to hold multiple values.
 type Pair[T, K any] struct {
-	x T
-	y K
+	X T
+	Y K
 }
 
+// FromChan creates an Iterator from a channel.
 func FromChan[T any](c chan T) Iterator[T] {
 	return c
 }
 
+// FromSlice creates an Iterator over the given slice.
 func FromSlice[T any](slice []T) Iterator[T] {
 	it := make(chan T)
 	go func() {
@@ -22,17 +26,19 @@ func FromSlice[T any](slice []T) Iterator[T] {
 	return it
 }
 
+// FromMap creates an Iterator of Pairs that contain key and value of the given map.
 func FromMap[T comparable, K any](m map[T]K) Iterator[Pair[T, K]] {
 	it := make(chan Pair[T, K])
 	go func() {
 		defer close(it)
 		for key, v := range m {
-			it <- Pair[T, K]{x: key, y: v}
+			it <- Pair[T, K]{X: key, Y: v}
 		}
 	}()
 	return it
 }
 
+// FromMapKeys creates an Iterator over the keys of the given map.
 func FromMapKeys[T comparable, K any](m map[T]K) Iterator[T] {
 	it := make(chan T)
 	go func() {
@@ -44,6 +50,7 @@ func FromMapKeys[T comparable, K any](m map[T]K) Iterator[T] {
 	return it
 }
 
+// FromMapValues creates an Iterator over the values of the given map.
 func FromMapValues[K comparable, T any](m map[K]T) Iterator[T] {
 	it := make(chan T)
 	go func() {
@@ -55,6 +62,7 @@ func FromMapValues[K comparable, T any](m map[K]T) Iterator[T] {
 	return it
 }
 
+// Collect consumes the Iterator, returning a slice of all its elements.
 func (it Iterator[T]) Collect() []T {
 	var slice []T
 	for v := range it {
@@ -63,6 +71,7 @@ func (it Iterator[T]) Collect() []T {
 	return slice
 }
 
+// Filter uses the given function to determine whether elements should continue through the pipeline.
 func (it Iterator[T]) Filter(f func(T) bool) Iterator[T] {
 	newIter := make(chan T)
 	go func() {
@@ -76,6 +85,7 @@ func (it Iterator[T]) Filter(f func(T) bool) Iterator[T] {
 	return newIter
 }
 
+// Map applies the given function to all elements going through the pipeline.
 func (it Iterator[T]) Map(f func(T) T) Iterator[T] {
 	newIter := make(chan T)
 	go func() {
@@ -87,6 +97,7 @@ func (it Iterator[T]) Map(f func(T) T) Iterator[T] {
 	return newIter
 }
 
+// MapInto applies the given function to all elements and allows for the type to change.
 func MapInto[T, K any](it Iterator[T], f func(T) K) Iterator[K] {
 	newIter := make(chan K)
 	go func() {
@@ -98,6 +109,9 @@ func MapInto[T, K any](it Iterator[T], f func(T) K) Iterator[K] {
 	return newIter
 }
 
+// Skip skips the first n elements of the Iterator.
+//
+// n can be larger than the number of elements in the Iterator, which will empty it.
 func (it Iterator[T]) Skip(n uint) Iterator[T] {
 	for i := uint(0); i < n; i++ {
 		<-it
@@ -105,6 +119,9 @@ func (it Iterator[T]) Skip(n uint) Iterator[T] {
 	return it
 }
 
+// Take takes the first n elements of the Iterator.
+//
+// All elements after the first n elements will be discarded.
 func (it Iterator[T]) Take(n uint) Iterator[T] {
 	newIter := make(chan T)
 	go func() {
@@ -120,6 +137,9 @@ func (it Iterator[T]) Take(n uint) Iterator[T] {
 	return newIter
 }
 
+// Nth returns a pointer to the element at position n.
+//
+// If there are fewer than n elements in the Iterator, nil is returned.
 func (it Iterator[T]) Nth(n uint) *T {
 	for i := uint(0); i < n-1; i++ {
 		_, ok := <-it
@@ -134,6 +154,7 @@ func (it Iterator[T]) Nth(n uint) *T {
 	return &v
 }
 
+// Count consumes the Iterator and returns its number of elements.
 func (it Iterator[T]) Count() uint {
 	c := uint(0)
 	for range it {
@@ -142,6 +163,7 @@ func (it Iterator[T]) Count() uint {
 	return c
 }
 
+// Last returns the last element of the Iterator, consuming it in the process.
 func (it Iterator[T]) Last() T {
 	var l T
 	for v := range it {
@@ -150,6 +172,7 @@ func (it Iterator[T]) Last() T {
 	return l
 }
 
+// StepBy advances the Iterator by n elements every time something is taken.
 func (it Iterator[T]) StepBy(n uint) Iterator[T] {
 	if n == 0 {
 		return nil
@@ -176,6 +199,7 @@ func (it Iterator[T]) StepBy(n uint) Iterator[T] {
 	return newIter
 }
 
+// Chain creates a new Iterator which returns the elements of both Iterators.
 func (it Iterator[T]) Chain(other Iterator[T]) Iterator[T] {
 	newIter := make(chan T)
 	go func() {
@@ -190,6 +214,7 @@ func (it Iterator[T]) Chain(other Iterator[T]) Iterator[T] {
 	return newIter
 }
 
+// Intersperse inserts the separator sep between each element of the Iterator.
 func (it Iterator[T]) Intersperse(sep T) Iterator[T] {
 	newIter := make(chan T)
 	go func() {
@@ -213,12 +238,17 @@ func (it Iterator[T]) Intersperse(sep T) Iterator[T] {
 	return newIter
 }
 
+// ForEach executes the given function for each element of the Iterator.
 func (it Iterator[T]) ForEach(f func(T)) {
 	for v := range it {
 		f(v)
 	}
 }
 
+// Zip creates a new Iterator that contains Pairs containing the elements of both Iterators.
+//
+// If one of the input Iterators is shorter than the other one, the new Iterator
+// will stop at that point.
 func Zip[T, K any](it Iterator[T], other Iterator[K]) Iterator[Pair[T, K]] {
 	newIter := make(chan Pair[T, K])
 	go func() {
@@ -232,12 +262,13 @@ func Zip[T, K any](it Iterator[T], other Iterator[K]) Iterator[Pair[T, K]] {
 			if !ok2 {
 				return
 			}
-			newIter <- Pair[T, K]{x: v1, y: v2}
+			newIter <- Pair[T, K]{X: v1, Y: v2}
 		}
 	}()
 	return newIter
 }
 
+// SkipWhile discards all elements until the condition of the given function is met once.
 func (it Iterator[T]) SkipWhile(f func(T) bool) Iterator[T] {
 	newIter := make(chan T)
 	go func() {
@@ -255,6 +286,7 @@ func (it Iterator[T]) SkipWhile(f func(T) bool) Iterator[T] {
 	return newIter
 }
 
+// TakeWhile takes elements until the condition of the given function is false once.
 func (it Iterator[T]) TakeWhile(f func(T) bool) Iterator[T] {
 	newIter := make(chan T)
 	go func() {
@@ -270,6 +302,9 @@ func (it Iterator[T]) TakeWhile(f func(T) bool) Iterator[T] {
 	return newIter
 }
 
+// Inspect applies the given function on each element while the Iterator is consumed.
+//
+// This is helpful for debugging, see the example.
 func (it Iterator[T]) Inspect(f func(T)) Iterator[T] {
 	newIter := make(chan T)
 	go func() {
@@ -282,6 +317,11 @@ func (it Iterator[T]) Inspect(f func(T)) Iterator[T] {
 	return newIter
 }
 
+// Partition splits the contents of the iterator based on the condition defined in the given function.
+//
+// Two slices are returned. The first slice contains all elements of the Iterator
+// for which f evaluated to true. The second slice contains all elements for
+// which f evaluated to false.
 func (it Iterator[T]) Partition(f func(T) bool) ([]T, []T) {
 	var yes []T
 	var no []T
@@ -295,6 +335,7 @@ func (it Iterator[T]) Partition(f func(T) bool) ([]T, []T) {
 	return yes, no
 }
 
+// Fold applies the given function to all elements, folding them into the given accumulator.
 func (it Iterator[T]) Fold(acc T, f func(T, T) T) T {
 	for v := range it {
 		acc = f(acc, v)
@@ -302,6 +343,9 @@ func (it Iterator[T]) Fold(acc T, f func(T, T) T) T {
 	return acc
 }
 
+// Reduce folds the Iterator using the given function, using the first element as the initial accumulator.
+//
+// Reduce returns a pointer for the accumulated value. If the Iterator is empty, this will be nil.
 func (it Iterator[T]) Reduce(f func(T, T) T) *T {
 	acc, ok := <-it
 	if !ok {
@@ -313,6 +357,7 @@ func (it Iterator[T]) Reduce(f func(T, T) T) *T {
 	return &acc
 }
 
+// All checks whether the given condition is true for all elements.
 func (it Iterator[T]) All(f func(T) bool) bool {
 	for v := range it {
 		if !f(v) {
@@ -322,6 +367,7 @@ func (it Iterator[T]) All(f func(T) bool) bool {
 	return true
 }
 
+// Any checks whether there exists one element for which the given condition is true.
 func (it Iterator[T]) Any(f func(T) bool) bool {
 	for v := range it {
 		if f(v) {
@@ -331,6 +377,9 @@ func (it Iterator[T]) Any(f func(T) bool) bool {
 	return false
 }
 
+// Find returns a pointer to the first element for which the given condition is true.
+//
+// If no such element exists, nil is returned.
 func (it Iterator[T]) Find(f func(T) bool) *T {
 	for v := range it {
 		if f(v) {
@@ -340,6 +389,9 @@ func (it Iterator[T]) Find(f func(T) bool) *T {
 	return nil
 }
 
+// Position returns the position of the first element for which the given condition is true as a pointer.
+//
+// If no such element exists, nil is returned.
 func (it Iterator[T]) Position(f func(T) bool) *uint {
 	p := uint(0)
 	for v := range it {
