@@ -1,5 +1,7 @@
 package iter
 
+import "fmt"
+
 // Iterator can be used to process data in a pipeline pattern.
 type Iterator[T any] chan T
 
@@ -401,4 +403,208 @@ func (it Iterator[T]) Position(f func(T) bool) *uint {
 		}
 	}
 	return nil
+}
+
+// Interleave creates a new Iterator that alternates between the two given Iterators.
+func (it Iterator[T]) Interleave(other Iterator[T]) Iterator[T] {
+	newIter := make(chan T)
+	go func() {
+		defer close(newIter)
+		for {
+			v1, ok1 := <-it
+			if ok1 {
+				newIter <- v1
+			}
+			v2, ok2 := <-other
+			if ok2 {
+				newIter <- v2
+			}
+			if !ok1 && !ok2 {
+				return
+			}
+		}
+	}()
+	return newIter
+}
+
+// InterleaveShortest creates a new Iterator that alternates between the two given Iterators until at least one of them runs out.
+func (it Iterator[T]) InterleaveShortest(other Iterator[T]) Iterator[T] {
+	newIter := make(chan T)
+	go func() {
+		defer close(newIter)
+		for {
+			v1, ok1 := <-it
+			if !ok1 {
+				return
+			}
+			newIter <- v1
+			v2, ok2 := <-other
+			if !ok2 {
+				return
+			}
+			newIter <- v2
+		}
+	}()
+	return newIter
+}
+
+// GroupBy returns a list of slices, which elements are grouped by the given condition.
+func (it Iterator[T]) GroupBy(f func(T) bool) [][]T {
+	var result [][]T
+	var lastState *bool
+	var currentChunk []T
+	for v := range it {
+		if lastState == nil {
+			state := f(v)
+			lastState = &state
+			currentChunk = append(currentChunk, v)
+		} else {
+			state := f(v)
+			if state == *lastState {
+				currentChunk = append(currentChunk, v)
+			} else {
+				*lastState = state
+				result = append(result, currentChunk)
+				currentChunk = []T{v}
+			}
+		}
+	}
+	result = append(result, currentChunk)
+	return result
+}
+
+// Chunks returns a list of slices containing at most n elements of the original Iterator.
+func (it Iterator[T]) Chunks(n uint) [][]T {
+	var result [][]T
+	var currentChunk []T
+Loop:
+	for {
+		for i := uint(0); i < n; i++ {
+			v, ok := <-it
+			if !ok {
+				break Loop
+			}
+			currentChunk = append(currentChunk, v)
+		}
+		result = append(result, currentChunk)
+		currentChunk = nil
+	}
+	if currentChunk != nil {
+		result = append(result, currentChunk)
+	}
+	return result
+}
+
+// Windows returns all overlapping subslices of length n of the original Iterator.
+func (it Iterator[T]) Windows(n uint) [][]T {
+	var result [][]T
+	var currentWindow []T
+	for i := uint(0); i < n; i++ {
+		v, ok := <-it
+		if !ok {
+			result = append(result, currentWindow)
+			return result
+		}
+		currentWindow = append(currentWindow, v)
+	}
+	result = append(result, currentWindow)
+	newWindow := make([]T, n)
+	copy(newWindow, currentWindow)
+	currentWindow = newWindow
+	for {
+		v, ok := <-it
+		if !ok {
+			return result
+		}
+		for i := uint(0); i < n-1; i++ {
+			currentWindow[i] = currentWindow[i+1]
+		}
+		currentWindow[n-1] = v
+		result = append(result, currentWindow)
+		newWindow := make([]T, n)
+		copy(newWindow, currentWindow)
+		currentWindow = newWindow
+	}
+}
+
+// CartesianProduct returns an Iterator over the cartesian product of both given Iterators.
+func CartesianProduct[T, K any](it Iterator[T], other Iterator[K]) Iterator[Pair[T, K]] {
+	newIter := make(chan Pair[T, K])
+	go func() {
+		defer close(newIter)
+		var elementBuffer []K
+		for v := range it {
+			if elementBuffer == nil {
+				for vo := range other {
+					elementBuffer = append(elementBuffer, vo)
+					newIter <- Pair[T, K]{X: v, Y: vo}
+				}
+			} else {
+				for _, vo := range elementBuffer {
+					newIter <- Pair[T, K]{X: v, Y: vo}
+				}
+			}
+		}
+	}()
+	return newIter
+}
+
+// Dedup removes duplicates from sections of consecutive elements determined by the given condition.
+func (it Iterator[T]) Dedup(f func(T, T) bool) Iterator[T] {
+	newIter := make(chan T)
+	go func() {
+		defer close(newIter)
+		var lastElem *T
+		for v := range it {
+			if lastElem == nil {
+				cp := v
+				lastElem = &cp
+				newIter <- v
+			} else {
+				if !f(*lastElem, v) {
+					newIter <- v
+				}
+				*lastElem = v
+			}
+		}
+	}()
+	return newIter
+}
+
+// Unique produces an Iterator that returns unique elements from the given Iterator determined by the given condition.
+//
+// Since Iterator can take any type, f has to convert the element type into a
+// comparable type. If your type is already comparable, it is enough to just
+// return it in the closure. See the example.
+func Unique[T any, K comparable](it Iterator[T], f func(T) K) Iterator[T] {
+	newIter := make(chan T)
+	go func() {
+		defer close(newIter)
+		m := make(map[K]bool, 0)
+		for v := range it {
+			cmp := f(v)
+			if !m[cmp] {
+				m[cmp] = true
+				newIter <- v
+			}
+		}
+	}()
+	return newIter
+}
+
+// Join combines all elements into a string separated by sep.
+func (it Iterator[T]) Join(sep string) string {
+	out := ""
+	v, ok := <-it
+	if !ok {
+		return out
+	}
+	out += fmt.Sprintf("%v", v)
+	for {
+		v, ok := <-it
+		if !ok {
+			return out
+		}
+		out += fmt.Sprintf("%s%v", sep, v)
+	}
 }

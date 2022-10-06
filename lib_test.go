@@ -515,3 +515,217 @@ func TestZip(t *testing.T) {
 		t.Error("Zip did not work for ints")
 	}
 }
+
+func TestIterator_Interleave(t *testing.T) {
+	it1 := FromSlice([]int{1, 2, 3})
+	it2 := FromSlice([]int{4, 5, 6, 7, 8})
+	expected := []int{1, 4, 2, 5, 3, 6, 7, 8}
+	interleaved := it1.Interleave(it2).Collect()
+	if len(interleaved) != len(expected) {
+		t.Error("Interleave did not work for ints")
+		return
+	}
+	for i := 0; i < len(interleaved); i++ {
+		if interleaved[i] != expected[i] {
+			t.Error("Interleave did not work for ints")
+			return
+		}
+	}
+}
+
+func TestIterator_InterleaveShortest(t *testing.T) {
+	it1 := FromSlice([]int{1, 2, 3})
+	it2 := FromSlice([]int{4, 5, 6, 7, 8})
+	expected := []int{1, 4, 2, 5, 3, 6}
+	interleaved := it1.InterleaveShortest(it2).Collect()
+	if len(interleaved) != len(expected) {
+		t.Error("InterleaveShortest did not work for ints")
+		return
+	}
+	for i := 0; i < len(interleaved); i++ {
+		if interleaved[i] != expected[i] {
+			t.Error("InterleaveShortest did not work for ints")
+			return
+		}
+	}
+}
+
+func TestIterator_GroupBy(t *testing.T) {
+	it := FromSlice([]int{-2, -1, 1, 2, 3, -4, -5, 7, 8})
+	expected := [][]int{{-2, -1}, {1, 2, 3}, {-4, -5}, {7, 8}}
+	grouped := it.GroupBy(func(x int) bool { return x > 0 })
+	if len(grouped) != len(expected) {
+		t.Error("GroupBy did not work for ints")
+		return
+	}
+	for i := 0; i < len(grouped); i++ {
+		if len(grouped[i]) != len(expected[i]) {
+			t.Error("GroupBy did not work for ints")
+			return
+		}
+		for k := 0; k < len(grouped[i]); k++ {
+			if grouped[i][k] != grouped[i][k] {
+				t.Error("GroupBy did not work for ints")
+				return
+			}
+		}
+	}
+}
+
+func TestIterator_Chunks(t *testing.T) {
+	it := FromSlice([]int{-2, -1, 1, 2, 3, -4, -5, 7, 8})
+	expected := [][]int{{-2, -1, 1}, {2, 3, -4}, {-5, 7, 8}}
+	chunked := it.Chunks(3)
+	if len(chunked) != len(expected) {
+		t.Error("Chunks did not work for ints")
+		return
+	}
+	for i := 0; i < len(chunked); i++ {
+		if len(chunked[i]) != len(expected[i]) {
+			t.Error("Chunks did not work for ints")
+			return
+		}
+		for k := 0; k < len(chunked[i]); k++ {
+			if chunked[i][k] != chunked[i][k] {
+				t.Error("Chunks did not work for ints")
+				return
+			}
+		}
+	}
+
+	it = FromSlice([]int{-2, -1, 1, 2, 3, -4, -5, 7, 8})
+	expected = [][]int{{-2, -1}, {1, 2}, {3, -4}, {-5, 7}, {8}}
+	chunked = it.Chunks(2)
+	if len(chunked) != len(expected) {
+		t.Error("Chunks did not work for ints")
+		return
+	}
+	for i := 0; i < len(chunked); i++ {
+		if len(chunked[i]) != len(expected[i]) {
+			t.Error("Chunks did not work for ints")
+			return
+		}
+		for k := 0; k < len(chunked[i]); k++ {
+			if chunked[i][k] != chunked[i][k] {
+				t.Error("Chunks did not work for ints")
+				return
+			}
+		}
+	}
+}
+
+func TestIterator_Windows(t *testing.T) {
+	it := FromSlice([]int{1, 2, 3, 4, 5})
+	expected := [][]int{{1, 2}, {2, 3}, {3, 4}, {4, 5}}
+	windows := it.Windows(2)
+	if len(windows) != len(expected) {
+		t.Error("Windows did not work for ints")
+		return
+	}
+	for i := 0; i < len(windows); i++ {
+		if len(windows[i]) != len(expected[i]) {
+			t.Error("Windows did not work for ints")
+			return
+		}
+		for k := 0; k < len(windows[i]); k++ {
+			if windows[i][k] != windows[i][k] {
+				t.Error("Windows did not work for ints")
+				return
+			}
+		}
+	}
+
+	it = FromSlice([]int{1, 2, 3, 4, 5})
+	expected = [][]int{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}}
+	windows = it.Windows(3)
+	if len(windows) != len(expected) {
+		t.Error("Windows did not work for ints")
+		return
+	}
+	for i := 0; i < len(windows); i++ {
+		if len(windows[i]) != len(expected[i]) {
+			t.Error("Windows did not work for ints")
+			return
+		}
+		for k := 0; k < len(windows[i]); k++ {
+			if windows[i][k] != windows[i][k] {
+				t.Error("Windows did not work for ints")
+				return
+			}
+		}
+	}
+}
+
+func TestCartesianProduct(t *testing.T) {
+	it1 := FromSlice([]int{1, 2, 3})
+	it2 := FromSlice([]int{4, 5, 6, 7, 8})
+	expected := []Pair[int, int]{
+		{X: 1, Y: 4},
+		{X: 1, Y: 5},
+		{X: 1, Y: 6},
+		{X: 1, Y: 7},
+		{X: 1, Y: 8},
+		{X: 2, Y: 4},
+		{X: 2, Y: 5},
+		{X: 2, Y: 6},
+		{X: 2, Y: 7},
+		{X: 2, Y: 8},
+		{X: 3, Y: 4},
+		{X: 3, Y: 5},
+		{X: 3, Y: 6},
+		{X: 3, Y: 7},
+		{X: 3, Y: 8},
+	}
+	cp := CartesianProduct(it1, it2).Collect()
+	if len(cp) != len(expected) {
+		t.Error("CartesianProduct did not work for ints")
+		return
+	}
+	for i := 0; i < len(cp); i++ {
+		if cp[i] != expected[i] {
+			t.Error("CartesianProduct did not work for ints")
+			return
+		}
+	}
+}
+
+func TestIterator_Dedup(t *testing.T) {
+	it := FromSlice([]int{1, 1, 1, 2, 2, 3, 4, 5, 6, 6})
+	expected := []int{1, 2, 3, 4, 5, 6}
+	deduped := it.Dedup(func(x, y int) bool { return x == y }).Collect()
+	if len(deduped) != len(expected) {
+		t.Error("Dedup did not work for ints")
+		return
+	}
+	for i := 0; i < len(deduped); i++ {
+		if deduped[i] != expected[i] {
+			t.Error("Dedup did not work for ints")
+			return
+		}
+	}
+}
+
+func TestUnique(t *testing.T) {
+	it := FromSlice([]int{1, 1, 2, 2, 1, 3, 4, 5, 6, 1, 6})
+	expected := []int{1, 2, 3, 4, 5, 6}
+	uniq := Unique(it, func(x int) int { return x }).Collect()
+	if len(uniq) != len(expected) {
+		t.Error("Unique did not work for ints")
+		return
+	}
+	for i := 0; i < len(uniq); i++ {
+		if uniq[i] != expected[i] {
+			t.Error("Unique did not work for ints")
+			return
+		}
+	}
+}
+
+func TestIterator_Join(t *testing.T) {
+	it := FromSlice([]int{1, 2, 3, 4})
+	s := it.Join(",")
+	if s != "1,2,3,4" {
+		t.Error("Join did not work for ints")
+		return
+	}
+}

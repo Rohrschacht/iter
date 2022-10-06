@@ -256,3 +256,77 @@ func ExampleZip() {
 	// output:
 	// [{1 4} {2 5} {3 6}]
 }
+
+func ExampleIterator_Interleave() {
+	it1 := FromSlice([]int{1, 2, 3})
+	it2 := FromSlice([]int{4, 5, 6, 7, 8})
+	interleaved := it1.Interleave(it2)
+	fmt.Println(interleaved.Collect())
+	// output:
+	// [1 4 2 5 3 6 7 8]
+}
+
+func ExampleIterator_InterleaveShortest() {
+	it1 := FromSlice([]int{1, 2, 3})
+	it2 := FromSlice([]int{4, 5, 6, 7, 8})
+	interleaved := it1.InterleaveShortest(it2)
+	fmt.Println(interleaved.Collect())
+	// output:
+	// [1 4 2 5 3 6]
+}
+
+func ExampleIterator_GroupBy() {
+	it := FromSlice([]int{-2, -1, 1, 2, 3, -4, -5, 7, 8})
+	grouped := it.GroupBy(func(x int) bool { return x > 0 })
+	fmt.Println(grouped)
+	// output:
+	// [[-2 -1] [1 2 3] [-4 -5] [7 8]]
+}
+
+func ExampleIterator_Chunks() {
+	it := FromSlice([]int{-2, -1, 1, 2, 3, -4, -5, 7, 8})
+	chunks := it.Chunks(3)
+	fmt.Println(chunks)
+	// output:
+	// [[-2 -1 1] [2 3 -4] [-5 7 8]]
+}
+
+func ExampleIterator_Windows() {
+	it := FromSlice([]int{1, 2, 3, 4, 5})
+	windows := it.Windows(2)
+	fmt.Println(windows)
+	// output:
+	// [[1 2] [2 3] [3 4] [4 5]]
+}
+
+func ExampleCartesianProduct() {
+	it1 := FromSlice([]int{1, 2, 3})
+	it2 := FromSlice([]int{4, 5, 6, 7, 8})
+	cp := CartesianProduct(it1, it2)
+	fmt.Println(cp.Collect())
+	// output:
+	// [{1 4} {1 5} {1 6} {1 7} {1 8} {2 4} {2 5} {2 6} {2 7} {2 8} {3 4} {3 5} {3 6} {3 7} {3 8}]
+}
+
+func ExampleIterator_Dedup() {
+	it := FromSlice([]int{1, 1, 1, 2, 2, 3, 4, 5, 6, 6}).
+		Dedup(func(x, y int) bool { return x == y })
+	fmt.Println(it.Collect())
+	// output:
+	// [1 2 3 4 5 6]
+}
+
+func ExampleUnique() {
+	it := FromSlice([]int{1, 1, 2, 2, 1, 3, 4, 5, 6, 1, 6})
+	uniq := Unique(it, func(x int) int { return x }) // int is already comparable
+	fmt.Println(uniq.Collect())
+	// output:
+	// [1 2 3 4 5 6]
+}
+
+func ExampleIterator_Join() {
+	it := FromSlice([]int{1, 2, 3, 4})
+	fmt.Println(it.Join(","))
+	// output:
+	// 1,2,3,4
+}
